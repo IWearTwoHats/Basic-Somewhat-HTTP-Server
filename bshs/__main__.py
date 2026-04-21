@@ -6,7 +6,7 @@ Basic Somewhat HTTP Server (BSHS)
 I'm just rewriting my old server.
 '''
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 import socket as s
 from colorama import Fore, Back # For your convenience.
@@ -16,6 +16,7 @@ from thpath import Path # That's right, I made my own Path object.
 from threading import Thread
 from htmlificate import HTML
 from typing import Any
+from urllib.parse import unquote_plus
 
 from .changelog import CHANGELOG
 
@@ -104,6 +105,9 @@ ADDR = '0.0.0.0'
 
 # Other config.
 #MISCCONFIG
+
+# Log level
+LOGLEVEL = 'normal'
 
 # If false, do not accept POST requests.
 ACCEPT_POST = True
@@ -238,7 +242,7 @@ def read(path: Path) -> bytes:
 	return file
 
 def handle(conn: s.socket, addr: Any) -> None: # type: ignore
-	global HTTP_STATUS_CODES, CHECK_PATHS, EXEC_NAMES, EXEC_MIMES, POST_PATHS, ALLOWED_HOSTNAMES, WEBSITE_DIRS, BUILTINS, ACCEPT_POST, ADD_SLASH_TO_DIR, CONSTRUCT_INDEX
+	global HTTP_STATUS_CODES, CHECK_PATHS, EXEC_NAMES, EXEC_MIMES, POST_PATHS, ALLOWED_HOSTNAMES, WEBSITE_DIRS, BUILTINS, ACCEPT_POST, ADD_SLASH_TO_DIR, CONSTRUCT_INDEX, LOGLEVEL
 	connection = ''
 	while connection != 'close':
 		code = 200
@@ -274,9 +278,21 @@ def handle(conn: s.socket, addr: Any) -> None: # type: ignore
 					path = path[1:]
 				if '..' in path:
 					raise NotFound
-				path = path.split('?')[0]
-			except ValueError:
-				raise BadRequest
+				split_path = path.split('?')
+				path = split_path[0]
+				if len(split_path) > 1:
+					query_string = split_path[1]
+					query_elements = [el for el in query_string.split('&')]
+					request_query = {}
+					for el in query_elements:
+						key, val = el.split('=')
+						request_query[unquote_plus(key)] = unquote_plus(val)
+				else:
+					request_query = {}
+					
+#			except ValueError:
+#				raise BadRequest
+			finally:pass
 			headers = {}
 			for line in req_header_lines[1:]:
 				elements = line.split(': ')
@@ -321,7 +337,7 @@ def handle(conn: s.socket, addr: Any) -> None: # type: ignore
 							for capture_script in CAPTURE_SCRIPTS:
 								if (full_capture_path := base_path / capture_path / capture_script).exists():
 									result = subprocess.run(
-										[str(full_capture_path), '--host', headers['host'], '--headers', json.dumps(headers), '--method', method, '--path', '/' + path],
+										[str(full_capture_path), '--host', headers['host'], '--headers', json.dumps(headers), '--method', method, '--path', '/' + path, '--relpath', str(base_path), '--query', json.dumps(request_query)],
 										capture_output=True,
 										text=True
 									)
@@ -423,7 +439,7 @@ def handle(conn: s.socket, addr: Any) -> None: # type: ignore
 		except Exception as e:
 			code = 500
 
-		#SENDRESPONCE
+		#SENDRESPONSE
 		good = [200,201]
 		redirect = [302,303]
 		bad = [400,403,404,405,408,500]
@@ -580,7 +596,7 @@ Information:
 """)
 
 def main() -> None:
-	global HTTP_STATUS_CODES, CHECK_PATHS, EXEC_NAMES, EXEC_MIMES, ALLOWED_HOSTNAMES, WEBSITE_DIRS, CAPTURE_PATHS, PORT, ADDR, CONSTRUCT_INDEX
+	global HTTP_STATUS_CODES, CHECK_PATHS, EXEC_NAMES, EXEC_MIMES, ALLOWED_HOSTNAMES, WEBSITE_DIRS, CAPTURE_PATHS, PORT, ADDR, CONSTRUCT_INDEX, LOGLEVEL
 	# Handle arguments.
 	#ARGS
 	args = sys.argv[1:]

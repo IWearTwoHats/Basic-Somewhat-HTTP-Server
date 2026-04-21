@@ -85,5 +85,12 @@ CHANGELOG = {
 	- New Features:
 		* Keep-Alive support
 			When a client requests a resource with the header "Connection: Keep-Alive", the server will now keep the socket open until it is requested to close.
+""",
+'0.3.1': """0.3.1
+	- Expanded features:
+		* Capture arguments
+			When executing a capture script, BSHS will now also pass --relpath <path> and --query <string>.
+			--relpath is the relative path that the website is hosted out of.
+			--query is the URL query parameters in a JSON string.
 """
 }
